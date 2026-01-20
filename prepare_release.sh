@@ -345,6 +345,9 @@ build_xcframework() {
 		"AD_HOC_CODE_SIGNING_ALLOWED=NO"
 		"OTHER_LDFLAGS=-Xlinker -no_adhoc_codesign"
 		"DEBUG_INFORMATION_FORMAT=dwarf-with-dsym"
+		"STRIP_INSTALLED_PRODUCT=YES"
+		"STRIP_STYLE=non-global"
+		"COPY_PHASE_STRIP=YES"
 	)
 
 	echo ""
@@ -368,13 +371,8 @@ build_xcframework() {
 
 	build_archive "macOS" "$archives_path"
 
-	# Strip the framework binary (debug symbols are in the dSYM)
-	local framework_binary="${archives_path}/GRDB-macOS.xcarchive/Products/Library/Frameworks/GRDB.framework/Versions/A/GRDB"
-	if [[ -f "$framework_binary" ]]; then
-		printf '%s' "Stripping debug symbols from framework ... "
-		strip -S "$framework_binary"
-		echo "✅"
-	fi
+	# Note: Stripping happens automatically during archive via STRIP_INSTALLED_PRODUCT=YES build setting
+	# This ensures dSYM UUID matches the stripped binary (Apple's recommended approach)
 
 	# Remove any ._ files before creating xcframework
 	find "${archives_path}" -name "._*" -delete
