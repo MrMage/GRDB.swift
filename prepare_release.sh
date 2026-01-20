@@ -329,6 +329,9 @@ build_xcframework() {
 		"SKIP_INSTALL=NO"
 		"ONLY_ACTIVE_ARCH=NO"
 		"ARCHS=arm64"
+		"CODE_SIGNING_REQUIRED=NO"
+		"CODE_SIGN_IDENTITY="
+		"CODE_SIGN_ENTITLEMENTS="
 	)
 
 	echo ""
