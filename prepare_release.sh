@@ -25,20 +25,21 @@ export new_version upstream_version="${grdb_tag#v}" sqlcipher_version="${sqlciph
 print_usage_and_exit() {
 	cat <<-EOF
 		Usage:
-		  $ $(basename "$0") [-v] [-h] [-n <version>] [-p] [<grdb_tag>]
+		  $ $(basename "$0") [-v] [-h] [-n <version>] [-p] [-s] [<grdb_tag>]
 
 		Options:
 		 -h             Show this message
 		 -v             Verbose output
 		 -n <version>   Specify the new version number (x.y.z format)
 		 -p             Automatically push to remote and create GitHub release
+		 -s             Skip running tests (only build)
 	EOF
 
 	exit 1
 }
 
 read_command_line_arguments() {
-	while getopts 'hvn:p' OPTION; do
+	while getopts 'hvn:ps' OPTION; do
 		case "${OPTION}" in
 		h)
 			print_usage_and_exit
@@ -51,6 +52,9 @@ read_command_line_arguments() {
 			;;
 		p)
 			auto_push=1
+			;;
+		s)
+			skip_tests=1
 			;;
 		*) ;;
 		esac
@@ -250,24 +254,28 @@ build_and_test_release() {
 		exit 1
 	fi
 
-	echo "Testing GRDB ... ⚙️"
-	# The skipped test references a test database added with a podfile.
-	# We're safe to disable it since we don't care about SQLCipher 3 compatibility anyway.
-	if xcodebuild test-without-building \
-		-project "${grdb_dir}/GRDB.xcodeproj" \
-		-scheme "GRDB" \
-		-derivedDataPath "$derived_data_dir" \
-		-skip-testing:GRDBTests/EncryptionTests/testSQLCipher3Compatibility |
-		tee -a "$log_file" | $log_formatter 2>&1; then
+	if [[ -z "$skip_tests" ]]; then
+		echo "Testing GRDB ... ⚙️"
+		# The skipped test references a test database added with a podfile.
+		# We're safe to disable it since we don't care about SQLCipher 3 compatibility anyway.
+		if xcodebuild test-without-building \
+			-project "${grdb_dir}/GRDB.xcodeproj" \
+			-scheme "GRDB" \
+			-derivedDataPath "$derived_data_dir" \
+			-skip-testing:GRDBTests/EncryptionTests/testSQLCipher3Compatibility |
+			tee -a "$log_file" | $log_formatter 2>&1; then
 
-		echo "Unit tests succeeded ✅"
+			echo "Unit tests succeeded ✅"
+		else
+			cat <<-EOF
+				Unit tests failed ❌
+				See log file at ${log_file} for more info.
+				Rerun with -s to skip testing.
+			EOF
+			exit 1
+		fi
 	else
-		cat <<-EOF
-			Unit tests failed ❌
-			See log file at ${log_file} for more info.
-			Rerun with -f to skip testing.
-		EOF
-		exit 1
+		echo "Skipping tests (as requested) ⏭️"
 	fi
 }
 
@@ -332,6 +340,7 @@ build_xcframework() {
 		"CODE_SIGNING_REQUIRED=NO"
 		"CODE_SIGN_IDENTITY="
 		"CODE_SIGN_ENTITLEMENTS="
+		"OTHER_LDFLAGS=-Xlinker -no_adhoc_codesign"
 	)
 
 	echo ""
