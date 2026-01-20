@@ -8,9 +8,9 @@ The default branch for this repository is `main` (as opposed to upstream's `mast
 
 ## Version
 
-* This Package: *3.2.0*
-* GRDB: *7.5.0*
-* SQLCipher: *4.9.0*
+* This Package: *3.3.0*
+* GRDB: *7.9.0*
+* SQLCipher: *4.12.0*
 
 ## Contributions
 
@@ -32,14 +32,15 @@ Run `prepare_release.sh`, which:
 - Checks out the latest tags of upstream GRDB.swift and SQLCipher.
 - Compares tags with versions included in the current release (based on the content of this README file).
   - If versions didn't change, the script stops here.
-  - If there are updates, the script asks you to input the new version (see [Versioning](#versioning)). The script then generates an updated README.md with udpated versions.
+  - If there are updates, the script asks you to input the new version (see [Versioning](#versioning)) unless `-n <version>` is provided. The script then generates an updated README.md with udpated versions.
 - Builds SQLCipher and moves sqlite3.c/h to GRDB.swift project.
 - Patches GRDB to include SQLCipher sources.
   - If patching fails, the script stops and asks you to patch the project yourself. Once done, it stores the patch for later use.
 - Builds GRDB and runs unit tests.
 - Builds frameworks for iOS, iOS Simulator and macOS and creates XCFramework.
 - Updates Package.swift with the new version and new XCFramework checksum.
-- Commits changes, tags the commit, pushes to origin and creates GitHub release.
+- Commits changes and tags the commit.
+- If `-p` flag is provided, pushes to origin and creates GitHub release. Otherwise, provides instructions for manual push.
 
 Once the script is done:
 
@@ -63,6 +64,6 @@ to use the same version as GRDB. Examples:
 In case `prepare_release.sh` script fails, you need to compile SQLCipher amalgamation package
 manually. See [general instructions](https://github.com/sqlcipher/sqlcipher#compiling-for-unix-like-systems):
 
-- Use `./configure --with-crypto-lib=none`.
+- Use `CFLAGS="-DSQLITE_HAS_CODEC -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_SNAPSHOT -DSQLCIPHER_CRYPTO_CC" ./configure`.
 - Remember to use `make sqlite3.c` and not `make`.
-- Copy `sqlite3.c` and `sqlite3.h` to `Sources/SQLCipher/sqlite3.c` and `Sources/SQLCipher/include/sqlite3.h`.
+- Copy `sqlite3.c` and `sqlite3.h` to the GRDB project directory.

@@ -25,24 +25,32 @@ export new_version upstream_version="${grdb_tag#v}" sqlcipher_version="${sqlciph
 print_usage_and_exit() {
 	cat <<-EOF
 		Usage:
-		  $ $(basename "$0") [-v] [-h] [<grdb_tag>]
+		  $ $(basename "$0") [-v] [-h] [-n <version>] [-p] [<grdb_tag>]
 
 		Options:
-		 -h      Show this message
-		 -v      Verbose output
+		 -h             Show this message
+		 -v             Verbose output
+		 -n <version>   Specify the new version number (x.y.z format)
+		 -p             Automatically push to remote and create GitHub release
 	EOF
 
 	exit 1
 }
 
 read_command_line_arguments() {
-	while getopts 'hv' OPTION; do
+	while getopts 'hvn:p' OPTION; do
 		case "${OPTION}" in
 		h)
 			print_usage_and_exit
 			;;
 		v)
 			mute=
+			;;
+		n)
+			new_version="$OPTARG"
+			;;
+		p)
+			auto_push=1
 			;;
 		*) ;;
 		esac
@@ -106,9 +114,16 @@ update_readme() {
 		SQLCipher version: ${current_sqlcipher_version} -> ${sqlcipher_version}
 	EOF
 
-	while ! [[ "${new_version}" =~ [0-9]\.[0-9]\.[0-9] ]]; do
-		read -rp "Input Inline GRDB.swift desired version number (x.y.z): " new_version </dev/tty
-	done
+	if [[ -z "${new_version}" ]]; then
+		while ! [[ "${new_version}" =~ [0-9]\.[0-9]\.[0-9] ]]; do
+			read -rp "Input Inline GRDB.swift desired version number (x.y.z): " new_version </dev/tty
+		done
+	elif ! [[ "${new_version}" =~ [0-9]\.[0-9]\.[0-9] ]]; then
+		echo "Error: Invalid version format '${new_version}'. Expected x.y.z format."
+		exit 1
+	else
+		echo "Using provided version: ${new_version}"
+	fi
 
 	envsubst <"${cwd}/assets/README.md.in" >README.md
 
@@ -127,7 +142,9 @@ build_sqlcipher() {
 	}
 
 	printf '%s' "Configuring SQLCipher ... "
+	export CFLAGS="-DSQLITE_HAS_CODEC -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_SNAPSHOT -DSQLCIPHER_CRYPTO_CC"
 	eval ./configure "$mute"
+	unset CFLAGS
 	echo "✅"
 
 	printf '%s' "Building SQLCipher ... "
@@ -160,6 +177,10 @@ patch_grdb() {
 	: >"${grdb_dir}/GRDB/Export.swift"
 
 	echo "#include \"${grdb_dir}/SQLCipher.xcconfig\"" >>"${grdb_dir}/Support/GRDBDeploymentTarget.xcconfig"
+
+	# Add sqlite3.h to the umbrella header
+	sed -i '' '/#import <GRDB\/GRDB-Bridging.h>/a\
+#import <GRDB/sqlite3.h>' "${grdb_dir}/Support/GRDB.h"
 
 	# Remove SQLCipher import statements
 	find "${grdb_dir}" -name "*.swift" -type f -exec sed -i '' 's/import SQLCipher/\/\/ import SQLCipher/g' {} +
@@ -385,15 +406,33 @@ make_release() {
 	git add "${cwd}/README.md" "${cwd}/Package.swift" "${cwd}/assets/xcodeproj.patch"
 	git commit -m "$commit_message"
 	git tag -m "$commit_message" "$new_version"
-	git push origin main
-	git push origin "$new_version"
 
-	gh release create "$new_version" --generate-notes "${xcframework_zip}" --repo inline-chat/GRDB.swift
+	if [[ -n "$auto_push" ]]; then
+		git push origin main
+		git push origin "$new_version"
 
-	cat <<-EOF
+		gh release create "$new_version" --generate-notes "${xcframework_zip}" --repo inline-chat/GRDB.swift
 
-		🎉 Release is ready at https://github.com/inline-chat/GRDB.swift/releases/tag/${new_version}
-	EOF
+		cat <<-EOF
+
+			🎉 Release is ready at https://github.com/inline-chat/GRDB.swift/releases/tag/${new_version}
+		EOF
+	else
+		cat <<-EOF
+
+			✅ Release prepared locally:
+			   - Commit created: ${commit_message}
+			   - Tag created: ${new_version}
+			   - XCFramework: ${xcframework_zip}
+
+			To push to remote and create GitHub release, run:
+			   git push origin main
+			   git push origin ${new_version}
+			   gh release create ${new_version} --generate-notes ${xcframework_zip} --repo inline-chat/GRDB.swift
+
+			Or re-run with -p flag to push automatically.
+		EOF
+	fi
 }
 
 main() {
