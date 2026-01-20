@@ -411,11 +411,12 @@ make_release() {
 		git push origin main
 		git push origin "$new_version"
 
-		gh release create "$new_version" --generate-notes "${xcframework_zip}" --repo inline-chat/GRDB.swift
+		gh release create "$new_version" --generate-notes "${xcframework_zip}" --repo MrMage/GRDB.swift
 
 		cat <<-EOF
 
-			🎉 Release is ready at https://github.com/inline-chat/GRDB.swift/releases/tag/${new_version}
+			🎉 Release is ready at https://github.com/MrMage/GRDB.swift/releases/tag/${new_version}
+			   XCFramework uploaded from: ${xcframework_zip}
 		EOF
 	else
 		cat <<-EOF
@@ -428,7 +429,7 @@ make_release() {
 			To push to remote and create GitHub release, run:
 			   git push origin main
 			   git push origin ${new_version}
-			   gh release create ${new_version} --generate-notes ${xcframework_zip} --repo inline-chat/GRDB.swift
+			   gh release create ${new_version} --generate-notes ${xcframework_zip} --repo MrMage/GRDB.swift
 
 			Or re-run with -p flag to push automatically.
 		EOF
