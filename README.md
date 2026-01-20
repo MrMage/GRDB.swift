@@ -37,7 +37,7 @@ Run `prepare_release.sh`, which:
 - Patches GRDB to include SQLCipher sources.
   - If patching fails, the script stops and asks you to patch the project yourself. Once done, it stores the patch for later use.
 - Builds GRDB and runs unit tests.
-- Builds frameworks for iOS, iOS Simulator and macOS and creates XCFramework.
+- Builds framework for macOS arm64 only and creates XCFramework.
 - Updates Package.swift with the new version and new XCFramework checksum.
 - Commits changes and tags the commit.
 - If `-p` flag is provided, pushes to origin and creates GitHub release. Otherwise, provides instructions for manual push.

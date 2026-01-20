@@ -328,10 +328,11 @@ build_xcframework() {
 		"BUILD_LIBRARY_FOR_DISTRIBUTION=YES"
 		"SKIP_INSTALL=NO"
 		"ONLY_ACTIVE_ARCH=NO"
+		"ARCHS=arm64"
 	)
 
 	echo ""
-	echo "Building XCFramework ⚙️"
+	echo "Building XCFramework (macOS arm64 only) ⚙️"
 
 	rm -rf "${derived_data}" "${archives_path}" "${xcframework}"
 
@@ -350,8 +351,6 @@ build_xcframework() {
 	clean_metadata "${workdir}"
 
 	build_archive "macOS" "$archives_path"
-	build_archive "iOS" "$archives_path"
-	build_archive "iOS Simulator" "$archives_path"
 
 	# Remove any ._ files before creating xcframework
 	find "${archives_path}" -name "._*" -delete
@@ -361,8 +360,6 @@ build_xcframework() {
 
 	xcodebuild -create-xcframework \
 		-archive "${archives_dir}/GRDB-macOS.xcarchive" -framework GRDB.framework \
-		-archive "${archives_dir}/GRDB-iOS.xcarchive" -framework GRDB.framework \
-		-archive "${archives_dir}/GRDB-iOS Simulator.xcarchive" -framework GRDB.framework \
 		-output "${xcframework}" >/dev/null 2>&1
 	popd >/dev/null 2>&1
 	echo "✅"
