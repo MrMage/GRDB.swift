@@ -344,6 +344,7 @@ build_xcframework() {
 		"DEVELOPMENT_TEAM="
 		"AD_HOC_CODE_SIGNING_ALLOWED=NO"
 		"OTHER_LDFLAGS=-Xlinker -no_adhoc_codesign"
+		"DEBUG_INFORMATION_FORMAT=dwarf-with-dsym"
 	)
 
 	echo ""
@@ -367,15 +368,33 @@ build_xcframework() {
 
 	build_archive "macOS" "$archives_path"
 
+	# Strip the framework binary (debug symbols are in the dSYM)
+	local framework_binary="${archives_path}/GRDB-macOS.xcarchive/Products/Library/Frameworks/GRDB.framework/Versions/A/GRDB"
+	if [[ -f "$framework_binary" ]]; then
+		printf '%s' "Stripping debug symbols from framework ... "
+		strip -S "$framework_binary"
+		echo "✅"
+	fi
+
 	# Remove any ._ files before creating xcframework
 	find "${archives_path}" -name "._*" -delete
 
-	printf '%s' "Creating XCFramework ... "
-	pushd "$workdir" >/dev/null 2>&1
+	printf '%s' "Creating XCFramework with dSYM ... "
 
-	xcodebuild -create-xcframework \
-		-archive "${archives_dir}/GRDB-macOS.xcarchive" -framework GRDB.framework \
-		-output "${xcframework}" >/dev/null 2>&1
+	local dsym_path="${archives_path}/GRDB-macOS.xcarchive/dSYMs/GRDB.framework.dSYM"
+
+	pushd "$workdir" >/dev/null 2>&1
+	if [[ -d "$dsym_path" ]]; then
+		xcodebuild -create-xcframework \
+			-framework "${archives_dir}/GRDB-macOS.xcarchive/Products/Library/Frameworks/GRDB.framework" \
+			-debug-symbols "$dsym_path" \
+			-output "${xcframework}" >/dev/null 2>&1
+	else
+		echo "Warning: dSYM not found, creating XCFramework without debug symbols"
+		xcodebuild -create-xcframework \
+			-framework "${archives_dir}/GRDB-macOS.xcarchive/Products/Library/Frameworks/GRDB.framework" \
+			-output "${xcframework}" >/dev/null 2>&1
+	fi
 	popd >/dev/null 2>&1
 	echo "✅"
 
